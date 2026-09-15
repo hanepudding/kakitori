@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.dictation</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/python3</string>
+        <string>dictate.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/dictation</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/path/to/dictation.log</string>
+    <key>StandardErrorPath</key>
+    <string>/path/to/dictation.log</string>
+</dict>
+</plist>

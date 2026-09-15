@@ -42,7 +42,7 @@ the project or port any piece of it.
 callbacks and the macOS intercept), `sounddevice`, `numpy`, `httpx`, `pyperclip`, `python-dotenv`. Settings come from
 `.env` (see `.env.example`), the vocabulary from `vocab.txt` (re-read on every press, so edits need no restart). The
 process never exits on a failure: an offline server or a failed request costs one utterance and pastes a one-line
-notice instead, so it can run unattended as a scheduled task.
+notice instead, so it can run unattended as a scheduled task (Windows) or LaunchAgent (macOS).
 
 **Models we use, and what can replace them**
 
@@ -117,6 +117,20 @@ stop it before running `python dictate.py` by hand, otherwise both react to the 
 registered the same way. To free the GPU for a while, disable the server tasks rather than ending them, since an
 hourly trigger restarts an ended task; the client keeps running and only pastes the offline notice.
 
+### Background service (macOS)
+
+launchd runs `dictate.py` at login and again whenever it exits. Copy `launchd/local.dictation.plist` into
+`~/Library/LaunchAgents/`, put your interpreter, this directory and the log path into it, and load it once:
+
+```
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.dictation.plist
+```
+
+The permissions go to the interpreter launchd starts, not to a terminal: in System Settings, Privacy & Security, add
+that `python3` binary to Accessibility (recent macOS lists it as device control and data access); Microphone is asked
+for on the first recording. Then `launchctl kickstart -k gui/$UID/local.dictation`. Stop it with
+`launchctl bootout gui/$UID/local.dictation` and load it again after editing `.env` or the plist.
+
 ## Layout
 
 ```
@@ -130,6 +144,7 @@ dictation/asr.py       llama-server client: health wait, WAV request, language p
 dictation/vocab.py     vocab.txt -> prompt
 dictation/normalize.py written form: the prompt, the number parsers, and the edit-by-edit check (merge)
 dictation/paste.py     paste via the clipboard, then restore the previous clipboard text (images and files are lost)
+launchd/               LaunchAgent for macOS
 ```
 
 ## Design decisions

@@ -13,7 +13,7 @@ if sys.stdout is None:
 import queue
 import time
 
-from dictation import hotkey, paste, recorder, vocab
+from dictation import chime, hotkey, paste, recorder, vocab
 from dictation.asr import SAMPLE_RATE, Qwen3ASR, ServerError
 from dictation.normalize import Normalizer, Rejected
 
@@ -55,7 +55,11 @@ if __name__ == "__main__":
         # Read on every press, so an edit to the vocabulary file takes effect without a restart
         prompt = vocab.load_prompt(settings.vocab)
         say("Recording...")
+        if settings.chime:
+            chime.play("start")
         samples = recorder.record(SAMPLE_RATE, until=lambda: wait_for(events, stop))
+        if settings.chime:
+            chime.play("done")
         if samples.size == 0:
             say("No audio recorded")
             continue

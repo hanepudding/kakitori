@@ -21,6 +21,7 @@ class Settings:
     timeout_sec: float
     normalizer_timeout_sec: float
     normalizer_sec_per_char: float
+    chime: bool
     paste_delay_sec: float
     restore_delay_sec: float
 
@@ -50,6 +51,7 @@ def load() -> Settings:
         timeout_sec=float(_get("DICTATION_TIMEOUT_SEC", "60")),
         normalizer_timeout_sec=float(_get("DICTATION_NORMALIZER_TIMEOUT_SEC", "5")),
         normalizer_sec_per_char=float(_get("DICTATION_NORMALIZER_SEC_PER_CHAR", "0.02")),
+        chime=_get("DICTATION_CHIME", "1") != "0",
         paste_delay_sec=float(_get("DICTATION_PASTE_DELAY_SEC", "0.05")),
         restore_delay_sec=float(_get("DICTATION_RESTORE_DELAY_SEC", "0.5")),
     )

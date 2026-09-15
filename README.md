@@ -18,7 +18,9 @@ the project or port any piece of it.
    the focused app never sees it (Ctrl+H is "replace" in editors and "backspace" in terminals). Press and release
    edges go into a queue; `hold` mode records between them, `toggle` mode between two presses.
 2. `sounddevice` (PortAudio) records mono float32 at 16 kHz from the default input device for as long as the key is
-   held.
+   held. A short tone sounds as recording starts and another as it stops (`winsound` on Windows, `afplay` on macOS).
+   The start tone overlaps the first 60 ms of the recording; on the test clips, a tone that ends before speech starts
+   leaves the transcript unchanged, and one that overlaps the first syllable adds a stray one.
 3. The audio is written to an in-memory 16-bit WAV and sent with `httpx` to a llama-server as one OpenAI-style chat
    completion: system message = the vocabulary prompt (`Vocabulary: term、term。`, built from `vocab.txt`), user
    message = `input_audio` (base64 WAV), `temperature 0`. To pin the language, the assistant turn is prefilled with
@@ -140,6 +142,7 @@ vocab.example.txt      vocabulary template; copy to vocab.txt (not in git), one 
 dictation/config.py    .env loading and parsing
 dictation/hotkey.py    global chord: press/release edges into a queue, trigger key swallowed
 dictation/recorder.py  mono recording from the default microphone
+dictation/chime.py     start and done tones
 dictation/asr.py       llama-server client: health wait, WAV request, language prefill, transcript parsing
 dictation/vocab.py     vocab.txt -> prompt
 dictation/normalize.py written form: the prompt, the number parsers, and the edit-by-edit check (merge)

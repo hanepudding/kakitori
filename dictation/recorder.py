@@ -7,6 +7,11 @@ import sounddevice as sd
 def record(sample_rate: int, until: Callable[[], None]) -> np.ndarray:
     """Record mono float32 from the default input device for as long as `until()` blocks."""
     chunks: list[np.ndarray] = []
+    # PortAudio lists devices once, at initialization, and keeps that list: a microphone connected since, or a
+    # Windows session that was locked and unlocked, leaves it opening a device that is gone or silent. Listing again
+    # costs a few milliseconds.
+    sd._terminate()
+    sd._initialize()
     with sd.InputStream(
         samplerate=sample_rate, channels=1, dtype="float32",
         callback=lambda data, frames, t, status: chunks.append(data[:, 0].copy()),

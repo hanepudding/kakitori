@@ -20,6 +20,7 @@ from dictation.normalize import Normalizer, Rejected
 STOP_EDGE = {"hold": "up", "toggle": "down"}
 OFFLINE_NOTICE = "[dictation] ASR server offline, not recording"
 FAILED_NOTICE = "[dictation] transcription failed"
+NO_INPUT_NOTICE = "[dictation] no input device"
 
 
 def say(message: str) -> None:
@@ -57,7 +58,12 @@ if __name__ == "__main__":
         say("Recording...")
         if settings.chime:
             chime.play("start")
-        samples = recorder.record(SAMPLE_RATE, until=lambda: wait_for(events, stop))
+        try:
+            samples = recorder.record(SAMPLE_RATE, until=lambda: wait_for(events, stop))
+        except recorder.sd.PortAudioError as e:
+            say(f"No input device: {e}")
+            paste.paste(NO_INPUT_NOTICE, settings.paste_delay_sec, settings.restore_delay_sec)
+            continue
         if settings.chime:
             chime.play("done")
         if samples.size == 0:

@@ -90,7 +90,9 @@ transcripts as spoken. Hold Ctrl+H to talk, release to paste. Every setting is e
 Audio costs about 13 tokens per second, and one request must fit a server slot together with the vocabulary prompt
 and the transcript: with 2048 tokens per slot an utterance can run to about 100 s. The client waits at startup until
 the ASR server's `/health` answers, and while the server is offline (stopped to free the GPU, say) a press pastes
-`[dictation] ASR server offline, not recording`; a failed request pastes `[dictation] transcription failed`.
+`[dictation] ASR server offline, not recording`; a failed request pastes `[dictation] transcription failed`; a press
+with no microphone available pastes `[dictation] no input device`. The device list is refreshed on every press, so a
+microphone connected after startup, or a Windows session locked and unlocked, is picked up on the next press.
 
 On Windows, the hotkey and the paste do not reach an elevated (administrator) window. On macOS, the interpreter that
 runs `dictate.py` needs Input Monitoring, Accessibility and Microphone. Bluetooth earphones switch to their call
@@ -184,11 +186,10 @@ launchd/               LaunchAgent for macOS
 ## Known limitations
 
 - Every transcript lands in the clipboard history and in `DICTATION_LOG_FILE`.
-- Whether the Windows keyboard hook keeps working after sleep or lock is untested; the task triggers only restart a
-  process that has exited.
+- Whether the Windows keyboard hook keeps working after sleep is untested; the task triggers only restart a process
+  that has exited.
 - A stray "v" instead of a paste has been reported for pynput's Ctrl+V under Chinese IMEs (CapsWriter-Offline #426);
   not seen here so far.
-- Whether a microphone connected after startup is picked up without a restart is unverified.
 - The written-form check lets through a deleted filler that did carry meaning, dropping a word from the sentence, and
   keeps the model's punctuation, which is often half-width right after a digit ("6.25%,"). Edits it undoes are
   dropped words, translations, tidied repetitions, numerals without one clear value, and a number whose space moved

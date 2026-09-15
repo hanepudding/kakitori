@@ -86,4 +86,6 @@ if __name__ == "__main__":
                 say(f"[written form in {time.perf_counter() - t:.2f} s] {text}" + (f" (kept as spoken: {', '.join(undone)})" if undone else ""))
             except (ServerError, Rejected) as e:
                 say(f"Pasting as spoken: {e}")
+        # A sentence-final 。 reads as curt in chat; ? and ! carry meaning and stay
+        text = text.rstrip("。.")
         paste.paste(text, settings.paste_delay_sec, settings.restore_delay_sec)

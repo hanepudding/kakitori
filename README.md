@@ -176,8 +176,10 @@ launchd/               LaunchAgent for macOS
   having the model revert the false ones (it wrote digits inside a fixed phrase). Rule-based inverse text
   normalization (WeTextProcessing) converts numbers but cannot tell fillers apart and has no Windows wheel on current
   Python.
-- **Unit symbols only after Chinese numbers.** "10 min" is a Chinese-text habit; Japanese and English write
-  "5 minutes", so those keep their unit words.
+- **Unit symbols only after Chinese numbers, and only where the model finds them natural.** "10 min" is a
+  Chinese-text habit; Japanese and English keep their unit words in full. Whether a Chinese
+  unit becomes a symbol is left to the model's reading of the context (specs and measurements yes, prose no); the
+  `UNITS` table only bounds which symbol a word may become, so a second can never come out as a minute.
 
 ## Known limitations
 

@@ -16,7 +16,7 @@ PROMPT = """Rewrite a raw dictation transcript into written form. The transcript
 Make only these edits:
 - Chinese numerals that express a number, amount, date or time become Arabic digits: 一零八零P -> 1080P, 十五点六英寸 -> 15.6英寸, 两百九十几 -> 290几, 百分之四十 -> 40%, 零点二十八分十六秒 -> 0点28分16秒. Times keep 点 and 分 and never become a colon: 九点半 -> 9点半, 七点零五分 -> 7点05分. Words that are not numbers stay: 一个, 一下, 一点, 一些, 一样, 十分. Approximate ranges stay as spoken: 七八个, 三五天, 十二三, 两三百.
 - Japanese and English numbers become digits the same way: 七時四十五分 -> 7時45分, three percent -> 3%, twenty five thousand -> 25000.
-- After a Chinese number, these units may become their symbols: 毫秒 ms, 秒 s, 分钟 min, 小时 h, 公里 km, 米 m, 厘米 cm, 毫米 mm, 公斤 kg, 克 g. For example 六十秒 -> 60s, 五分钟 -> 5 min. Other unit words stay, and Japanese and English unit words always stay: 十分で -> 10分で, five minutes -> 5 minutes.
+- After a Chinese number, a unit may become its symbol when that reads naturally in context, as in specs, measurements and logs: 六十秒 -> 60s, 五分钟 -> 5 min, 两公里 -> 2 km, 三十二GB -> 32 GB; leave it as a word where prose would, as in 三天, 两块钱. Symbols: 毫秒 ms, 秒 s, 分钟 min, 小时 h, 毫米 mm, 厘米 cm, 米 m, 公里 km, 毫克 mg, 克 g, 公斤 kg, 吨 t, 摄氏度 °C, 瓦 W, 赫兹 Hz, 兆赫 MHz, 千兆赫 GHz, 兆字节 MB, 千兆字节 GB, 毫升 ml, 升 L. Japanese and English unit words always stay: 十分で -> 10分で, five minutes -> 5 minutes.
 - Letters spelled out one by one are joined: S A N C -> SANC.
 - The hesitation sounds 呃, 嗯, えっと, えー, あのー, um and uh, and 那个 or 就是 said only to hesitate, are deleted together with a comma that belonged to them.
 
@@ -34,9 +34,17 @@ PERIOD = re.compile(r"\.(?!\d)")
 PAUSE_MARKS = "，、。；"
 DIGIT = {"零": 0, "〇": 0, "一": 1, "幺": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 PLACE = {"十": 10, "百": 100, "千": 1000, "万": 10**4, "亿": 10**8}
-# 秒钟 comes before 秒, otherwise 十秒钟 written as 10s would leave its 钟 unexplained. 千米 and 千克 are left out:
-# they would take the 千 away from the number, and 三千米 written as 3000m would be rejected.
-UNITS = {"毫秒": "ms", "秒钟": "s", "秒": "s", "分钟": "min", "小时": "h", "公里": "km", "厘米": "cm", "毫米": "mm", "米": "m", "公斤": "kg", "克": "g"}
+# The model chooses when a symbol reads naturally; this table only bounds which symbol a word may become. Longer
+# words come first so 毫秒 is not read as 毫 + 秒, and 十秒钟 written as 10s does not leave its 钟 unexplained.
+# 千米, 千克, 千瓦 and 千瓦时 are left out: they would take the 千 away from the number, and 三千米 written as
+# 3000m would be rejected.
+UNITS = {
+    "毫秒": "ms", "秒钟": "s", "秒": "s", "分钟": "min", "小时": "h",
+    "毫米": "mm", "厘米": "cm", "公里": "km", "米": "m",
+    "毫克": "mg", "公斤": "kg", "克": "g", "吨": "t",
+    "摄氏度": "°C", "瓦": "W", "千兆赫": "GHz", "兆赫": "MHz", "赫兹": "Hz",
+    "千兆字节": "GB", "兆字节": "MB", "毫升": "ml", "升": "L",
+}
 # A 个 before the unit goes with it: 两个小时 written as 2h
 UNIT_AFTER_NUMBER = re.compile(f"(?<=[0-9{''.join(DIGIT)}{''.join(PLACE)}])个? ?({'|'.join(UNITS)})")
 

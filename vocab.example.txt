@@ -1,0 +1,6 @@
+# Dictation vocabulary: one term per line, anything after # is a comment.
+# Terms stay in the language they are spoken in; they bias recognition toward exactly these spellings.
+# The longer the list, the more likely the model writes terms that were never said. Keep only what you actually say.
+
+llama.cpp
+Qwen3-ASR

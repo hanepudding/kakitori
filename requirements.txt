@@ -1,0 +1,10 @@
+# Install into the machine's own interpreter:
+#   uv pip install -r requirements.txt
+# Unpinned: the machine decides the versions.
+numpy
+sounddevice
+pyperclip
+python-dotenv
+httpx
+# The only pin: hotkey.py relies on the order in which this version calls the filter, the callbacks and intercept
+pynput==1.8.2

@@ -1,10 +1,11 @@
 # Kakitori
 
 Local push-to-talk dictation for Windows and macOS. Hold a hotkey, speak, release: the sentence is transcribed by a
-local speech model and pasted into whatever window has focus. Chinese, English and Japanese can be mixed in one sentence.
+local speech model, optionally rewritten into written form (digits, unit symbols, fillers removed) by a local chat
+model, and pasted into whatever window has focus. Chinese, English and Japanese can be mixed in one sentence.
 
-Everything runs on your own machine. This program itself holds no model: it records, talks to an HTTP server, and
-pastes. The model behind that server is yours to choose.
+Everything runs on your own machine. This program itself holds no model: it records, talks to two HTTP servers, and
+pastes. The models behind those servers are yours to choose.
 
 ## How it is built
 
@@ -23,7 +24,17 @@ the project or port any piece of it.
    message = `input_audio` (base64 WAV), `temperature 0`. To pin the language, the assistant turn is prefilled with
    `language Chinese<asr_text>`; by default it is left empty and the model detects the language per utterance. The
    answer reads `language <Name><asr_text><transcript>`; everything after `<asr_text>` is the transcript.
-4. `pyperclip` puts the text on the clipboard, `pynput` sends Ctrl+V (Cmd+V on macOS), and the previous clipboard
+4. Optionally the transcript goes to a second server, any chat model behind `/v1/chat/completions`, with the prompt
+   in `dictation/normalize.py` (`PROMPT`), `temperature 0`, thinking disabled. The prompt asks for exactly three kinds
+   of edit: numbers in digits, some units as symbols, hesitation fillers removed.
+5. The rewrite is not trusted. `difflib` aligns it with the transcript, and every edit is kept only if the same speech
+   could have produced both forms: a Chinese numeral or English number phrase written as the same value in digits
+   (the value is computed in code and must match), a unit after a Chinese number written as its symbol, a deleted
+   filler from a fixed list, or a moved space. A numeral the model wrote with the wrong digits gets the digits
+   computed in code; any other edit, such as a rephrased, translated or dropped phrase, is undone on its own, so the
+   rest of the sentence still benefits. Numerals with no single reading (approximate ranges, and one form that is
+   12000 in Chinese and 10002 in Japanese) stay as spoken.
+6. `pyperclip` puts the text on the clipboard, `pynput` sends Ctrl+V (Cmd+V on macOS), and the previous clipboard
    text is restored after a short delay. Typing the characters instead was rejected because Chinese IMEs capture key
    presses into their composition window.
 
@@ -33,7 +44,7 @@ callbacks and the macOS intercept), `sounddevice`, `numpy`, `httpx`, `pyperclip`
 process never exits on a failure: an offline server or a failed request costs one utterance and pastes a one-line
 notice instead, so it can run unattended as a scheduled task.
 
-**The model we use, and what can replace it**
+**Models we use, and what can replace them**
 
 - Transcription: [Qwen3-ASR-1.7B](https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF) (bf16 GGUF plus its mmproj)
   on [llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`. About 4.5 GB of VRAM, 0.1 to 0.5 s per
@@ -41,15 +52,27 @@ notice instead, so it can run unattended as a scheduled task.
   prefill will do; Ollama does not accept either. Other quantizations of the same model only need the `-hf` argument
   changed. A different ASR model needs its own output parsing in `dictation/asr.py` (the `<asr_text>` split and the
   language prefill are Qwen3-ASR conventions).
+- Written form: [Gemma 4 E4B](https://huggingface.co/unsloth/gemma-4-E4B-it-qat-GGUF) (Q4 QAT) on a second
+  `llama-server`, about 3 GB of VRAM, 0.2 s per sentence. This is just a chat completions endpoint: point
+  `DICTATION_NORMALIZER` at anything you already run, local or not, larger or smaller. The check in step 5 is what
+  keeps the output honest, not the model, so a bigger model mostly buys fewer undone edits. Whatever you pick, note
+  that this model sees every sentence you dictate, so choose one whose handling of your topics you trust. Qwen3-ASR
+  itself, in our use, transcribes whatever is said verbatim, profanity and sensitive topics included; it ignores
+  formatting instructions in its prompt, which is why the second model exists at all.
+
 ## Setup
 
-A llama-server, reachable over HTTP from this machine (it does not have to run on it), then the client.
+Two llama-servers, reachable over HTTP from this machine (neither has to run on it), then the client.
 
 ```
+# transcription, required
 llama-server -hf ggml-org/Qwen3-ASR-1.7B-GGUF --host 127.0.0.1 --port 8080 -ngl 99 -np 1 -c 2048 --no-webui
+
+# written form, optional
+llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 1 -c 4096 --no-webui
 ```
 
-It downloads the model on first use (`brew install llama.cpp` on macOS; on Windows take a CUDA build from the
+Both download their model on first use (`brew install llama.cpp` on macOS; on Windows take a CUDA build from the
 llama.cpp releases). Then, from the project directory, into the machine's own interpreter:
 
 ```
@@ -59,7 +82,8 @@ cp vocab.example.txt vocab.txt
 python dictate.py
 ```
 
-Hold Ctrl+H to talk, release to paste. Every setting is explained in `.env.example`.
+Set `DICTATION_NORMALIZER=http://127.0.0.1:8081` in `.env` if you started the second server; leave it blank to paste
+transcripts as spoken. Hold Ctrl+H to talk, release to paste. Every setting is explained in `.env.example`.
 
 Audio costs about 13 tokens per second, and one request must fit a server slot together with the vocabulary prompt
 and the transcript: with 2048 tokens per slot an utterance can run to about 100 s. The client waits at startup until
@@ -89,14 +113,14 @@ Register-ScheduledTask -TaskName dictation -Action $action -Trigger $logon, $hou
 ```
 
 `Start-ScheduledTask dictation` and `Stop-ScheduledTask dictation` control it; restart it after editing `.env`, and
-stop it before running `python dictate.py` by hand, otherwise both react to the hotkey. The llama-server can be
-registered the same way. To free the GPU for a while, disable the server task rather than ending it, since an
+stop it before running `python dictate.py` by hand, otherwise both react to the hotkey. The two llama-servers can be
+registered the same way. To free the GPU for a while, disable the server tasks rather than ending them, since an
 hourly trigger restarts an ended task; the client keeps running and only pastes the offline notice.
 
 ## Layout
 
 ```
-dictate.py             entry: records on the hotkey, transcribes, pastes, logs results and timings
+dictate.py             entry: records on the hotkey, transcribes, rewrites, pastes, logs results and timings
 .env.example           every setting with its default and what it does
 vocab.example.txt      vocabulary template; copy to vocab.txt (not in git), one term per line
 dictation/config.py    .env loading and parsing
@@ -104,6 +128,7 @@ dictation/hotkey.py    global chord: press/release edges into a queue, trigger k
 dictation/recorder.py  mono recording from the default microphone
 dictation/asr.py       llama-server client: health wait, WAV request, language prefill, transcript parsing
 dictation/vocab.py     vocab.txt -> prompt
+dictation/normalize.py written form: the prompt, the number parsers, and the edit-by-edit check (merge)
 dictation/paste.py     paste via the clipboard, then restore the previous clipboard text (images and files are lost)
 ```
 
@@ -123,6 +148,18 @@ dictation/paste.py     paste via the clipboard, then restore the previous clipbo
 - **Failures never end the process.** Startup waits for `/health` as long as it takes; afterwards an offline server or
   a failed request only costs that utterance, with a pasted notice, because a scheduled task restarts a dead process no
   sooner than its next trigger. The notice is pasted rather than shown elsewhere because the process has no console.
+- **Written form by an LLM whose edits are checked in code.** Only a model can tell a hesitation word from a meant
+  one and handle numbers, units, letters and fillers in one pass, but the prompt alone does not hold it: the model
+  still translated requests, dropped half clauses and wrote an approximate range as exact digits, so the check
+  compares whole number values and undoes edits one by one. Replaying 186 logged sentences through Gemma 4 E4B: 170
+  taken whole, 10 with one edit undone, 6 pasted as spoken; 0.18 s median. On 38 sentences written to test numbers,
+  units and Japanese, 35 came out as wanted. Two other designs were measured and lost: having the model mark the
+  numerals for the code to convert (it could not copy the text faithfully), and converting every numeral in code and
+  having the model revert the false ones (it wrote digits inside a fixed phrase). Rule-based inverse text
+  normalization (WeTextProcessing) converts numbers but cannot tell fillers apart and has no Windows wheel on current
+  Python.
+- **Unit symbols only after Chinese numbers.** "10 min" is a Chinese-text habit; Japanese and English write
+  "5 minutes", so those keep their unit words.
 
 ## Known limitations
 
@@ -132,3 +169,8 @@ dictation/paste.py     paste via the clipboard, then restore the previous clipbo
 - A stray "v" instead of a paste has been reported for pynput's Ctrl+V under Chinese IMEs (CapsWriter-Offline #426);
   not seen here so far.
 - Whether a microphone connected after startup is picked up without a restart is unverified.
+- The written-form check lets through a deleted filler that did carry meaning, dropping a word from the sentence, and
+  keeps the model's punctuation, which is often half-width right after a digit ("6.25%,"). Edits it undoes are
+  dropped words, translations, tidied repetitions, numerals without one clear value, and a number whose space moved
+  when its unit became a symbol.
+- While `DICTATION_NORMALIZER` is set and its server is down, every utterance waits 0.5 s for the connection first.

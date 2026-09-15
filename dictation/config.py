@@ -16,8 +16,11 @@ class Settings:
     language: str | None
     vocab: Path
     server: str
+    normalizer: str | None
     max_new_tokens: int
     timeout_sec: float
+    normalizer_timeout_sec: float
+    normalizer_sec_per_char: float
     paste_delay_sec: float
     restore_delay_sec: float
 
@@ -42,8 +45,11 @@ def load() -> Settings:
         language=_get("DICTATION_LANGUAGE"),
         vocab=_path(_get("DICTATION_VOCAB", "vocab.txt")),
         server=_get("DICTATION_SERVER", "http://127.0.0.1:8080"),
+        normalizer=_get("DICTATION_NORMALIZER"),
         max_new_tokens=int(_get("DICTATION_MAX_NEW_TOKENS", "512")),
         timeout_sec=float(_get("DICTATION_TIMEOUT_SEC", "60")),
+        normalizer_timeout_sec=float(_get("DICTATION_NORMALIZER_TIMEOUT_SEC", "5")),
+        normalizer_sec_per_char=float(_get("DICTATION_NORMALIZER_SEC_PER_CHAR", "0.02")),
         paste_delay_sec=float(_get("DICTATION_PASTE_DELAY_SEC", "0.05")),
         restore_delay_sec=float(_get("DICTATION_RESTORE_DELAY_SEC", "0.5")),
     )

@@ -15,6 +15,7 @@ import time
 
 from dictation import hotkey, paste, recorder, vocab
 from dictation.asr import SAMPLE_RATE, Qwen3ASR, ServerError
+from dictation.normalize import Normalizer, Rejected
 
 STOP_EDGE = {"hold": "up", "toggle": "down"}
 OFFLINE_NOTICE = "[dictation] ASR server offline, not recording"
@@ -36,6 +37,8 @@ if __name__ == "__main__":
 
     t = time.perf_counter()
     asr = Qwen3ASR(settings.server, settings.max_new_tokens, settings.timeout_sec)
+    normalizer = Normalizer(settings.normalizer, settings.max_new_tokens, settings.normalizer_timeout_sec,
+                            settings.normalizer_sec_per_char) if settings.normalizer else None
     say(f"Waiting for {settings.server} ...")
     asr.wait_until_ready()
     asr.warm_up(vocab.load_prompt(settings.vocab), settings.language)
@@ -66,4 +69,11 @@ if __name__ == "__main__":
         say(f"[{len(samples) / SAMPLE_RATE:.1f} s audio, transcribed in {time.perf_counter() - t:.2f} s] {text}")
         if not text:
             continue
+        if normalizer is not None:
+            t = time.perf_counter()
+            try:
+                text, undone = normalizer.normalize(text)
+                say(f"[written form in {time.perf_counter() - t:.2f} s] {text}" + (f" (kept as spoken: {', '.join(undone)})" if undone else ""))
+            except (ServerError, Rejected) as e:
+                say(f"Pasting as spoken: {e}")
         paste.paste(text, settings.paste_delay_sec, settings.restore_delay_sec)

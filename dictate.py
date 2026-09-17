@@ -21,6 +21,8 @@ STOP_EDGE = {"hold": "up", "toggle": "down"}
 OFFLINE_NOTICE = "[dictation] ASR server offline, not recording"
 FAILED_NOTICE = "[dictation] transcription failed"
 NO_INPUT_NOTICE = "[dictation] no input device"
+# What a sentence-final mark becomes; "" drops it. The space after an English one lets the next recording follow on
+SENTENCE_END = {"。": "。", ".": ". ", "?": "? ", "!": "! "}
 
 
 def say(message: str) -> None:
@@ -86,6 +88,6 @@ if __name__ == "__main__":
                 say(f"[written form in {time.perf_counter() - t:.2f} s] {text}" + (f" (kept as spoken: {', '.join(undone)})" if undone else ""))
             except (ServerError, Rejected) as e:
                 say(f"Pasting as spoken: {e}")
-        # A sentence-final 。 reads as curt in chat; ? and ! carry meaning and stay
-        text = text.rstrip("。.")
+        if text[-1:] in SENTENCE_END:
+            text = text[:-1] + SENTENCE_END[text[-1]]
         paste.paste(text, settings.paste_delay_sec, settings.restore_delay_sec)

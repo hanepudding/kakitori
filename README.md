@@ -4,63 +4,34 @@ Local push-to-talk dictation for Windows and macOS. Hold a hotkey, speak, releas
 local speech model, optionally rewritten into written form (digits, unit symbols, fillers removed) by a local chat
 model, and pasted into whatever window has focus. Chinese, English and Japanese can be mixed in one sentence.
 
-Everything runs on your own machine. This program itself holds no model: it records, talks to two HTTP servers, and
-pastes. The models behind those servers are yours to choose.
+Everything runs on your own machine. This program holds no model: it records, talks to two HTTP servers, and pastes.
 
-## How it is built
+This was vibe coded and is kept deliberately small. The rest of this file is written for the coding assistant you
+will hand it to. If you are reading it yourself, all of it is:
 
-The whole thing is about 650 lines of Python. This section is the wiring; with it, a coding assistant can rebuild
-the project or port any piece of it.
+1. Run two `llama-server` instances, sizes from the table below.
+2. Copy `.env.example` to `.env`, `vocab.example.txt` to `vocab.txt`, and run `python dictate.py`.
+3. Hold Ctrl+H, speak, release.
 
-**Pipeline, one utterance**
+## Choosing models
 
-1. `pynput` listens for a global key chord (default `Ctrl+H`). The trigger key is swallowed at the OS hook level so
-   the focused app never sees it (Ctrl+H is "replace" in editors and "backspace" in terminals). Press and release
-   edges go into a queue; `hold` mode records between them, `toggle` mode between two presses.
-2. `sounddevice` (PortAudio) records mono float32 at 16 kHz from the default input device for as long as the key is
-   held. A short tone sounds as recording starts and another as it stops (`winsound` on Windows, `afplay` on macOS).
-   The start tone overlaps the first 60 ms of the recording; on the test clips, a tone that ends before speech starts
-   leaves the transcript unchanged, and one that overlaps the first syllable adds a stray one.
-3. The audio is written to an in-memory 16-bit WAV and sent with `httpx` to a llama-server as one OpenAI-style chat
-   completion: system message = the vocabulary prompt (`Vocabulary: term、term。`, built from `vocab.txt`), user
-   message = `input_audio` (base64 WAV), `temperature 0`. To pin the language, the assistant turn is prefilled with
-   `language Chinese<asr_text>`; by default it is left empty and the model detects the language per utterance. The
-   answer reads `language <Name><asr_text><transcript>`; everything after `<asr_text>` is the transcript.
-4. Optionally the transcript goes to a second server, any chat model behind `/v1/chat/completions`, with the prompt
-   in `dictation/normalize.py` (`PROMPT`), `temperature 0`, thinking disabled. The prompt asks for exactly three kinds
-   of edit: numbers in digits, some units as symbols, hesitation fillers removed.
-5. The rewrite is not trusted. `difflib` aligns it with the transcript, and every edit is kept only if the same speech
-   could have produced both forms: a Chinese numeral or English number phrase written as the same value in digits
-   (the value is computed in code and must match), a unit after a Chinese number written as its symbol, a deleted
-   filler from a fixed list, or a moved space. A numeral the model wrote with the wrong digits gets the digits
-   computed in code; any other edit, such as a rephrased, translated or dropped phrase, is undone on its own, so the
-   rest of the sentence still benefits. Numerals with no single reading (approximate ranges, and one form that is
-   12000 in Chinese and 10002 in Japanese) stay as spoken.
-6. `pyperclip` puts the text on the clipboard, `pynput` sends Ctrl+V (Cmd+V on macOS), and the previous clipboard
-   text is restored after a short delay. Typing the characters instead was rejected because Chinese IMEs capture key
-   presses into their composition window.
+Take the last row that fits in the memory you can leave to the servers — on a dedicated card, its size less whatever
+the desktop already holds:
 
-**Stack**: Python 3.12+, `pynput` (pinned: the hotkey code depends on the order it calls the event filter, the
-callbacks and the macOS intercept), `sounddevice`, `numpy`, `httpx`, `pyperclip`, `python-dotenv`. Settings come from
-`.env` (see `.env.example`), the vocabulary from `vocab.txt` (re-read on every press, so edits need no restart). The
-process never exits on a failure: an offline server or a failed request costs one utterance and pastes a one-line
-notice instead, so it can run unattended as a scheduled task (Windows) or LaunchAgent (macOS).
+| Memory to spare | Transcription | Written form | |
+|---|---|---|---|
+| 2 GB | `Qwen3-ASR-0.6B:Q8_0` | none |
+| 4 GB | `Qwen3-ASR-0.6B:Q8_0` | `gemma-4-E2B-it-qat` |
+| 6 GB | `Qwen3-ASR-1.7B:Q8_0` | `gemma-4-E2B-it-qat` |
+| 7 GB | `Qwen3-ASR-1.7B:Q8_0` | `gemma-4-E4B-it-qat` | (what we run) |
+| 11 GB | `Qwen3-ASR-1.7B:Q8_0` | `gemma-4-12B-it-qat` |
 
-**Models we use, and what can replace them**
-
-- Transcription: [Qwen3-ASR-1.7B](https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF) (bf16 GGUF plus its mmproj)
-  on [llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server`. About 4.5 GB of VRAM, 0.1 to 0.5 s per
-  utterance on a current desktop GPU. Any server that accepts the OpenAI `input_audio` content part and an assistant-turn
-  prefill will do; Ollama does not accept either. Other quantizations of the same model only need the `-hf` argument
-  changed. A different ASR model needs its own output parsing in `dictation/asr.py` (the `<asr_text>` split and the
-  language prefill are Qwen3-ASR conventions).
-- Written form: [Gemma 4 E4B](https://huggingface.co/unsloth/gemma-4-E4B-it-qat-GGUF) (Q4 QAT) on a second
-  `llama-server`, about 3 GB of VRAM, 0.2 s per sentence. This is just a chat completions endpoint: point
-  `DICTATION_NORMALIZER` at anything you already run, local or not, larger or smaller. The check in step 5 is what
-  keeps the output honest, not the model, so a bigger model mostly buys fewer undone edits. Whatever you pick, note
-  that this model sees every sentence you dictate, so choose one whose handling of your topics you trust. Qwen3-ASR
-  itself, in our use, transcribes whatever is said verbatim, profanity and sensitive topics included; it ignores
-  formatting instructions in its prompt, which is why the second model exists at all.
+Start at the third row if you dictate much Japanese. Transcription needs a server that accepts the OpenAI
+`input_audio` content part and an assistant-turn prefill; Ollama accepts neither, and anything other than
+[Qwen3-ASR](https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF) needs its own parsing in `dictation/asr.py`. Written
+form is a plain chat completions endpoint: point `DICTATION_NORMALIZER` at anything you already run. It sees every
+sentence you dictate, so pick one you trust; Qwen3-ASR transcribes verbatim and ignores formatting instructions,
+which is the whole reason for the second model.
 
 ## Setup
 
@@ -68,7 +39,7 @@ Two llama-servers, reachable over HTTP from this machine (neither has to run on 
 
 ```
 # transcription, required
-llama-server -hf ggml-org/Qwen3-ASR-1.7B-GGUF --host 127.0.0.1 --port 8080 -ngl 99 -np 1 -c 2048 --no-webui
+llama-server -hf ggml-org/Qwen3-ASR-1.7B-GGUF:Q8_0 --host 127.0.0.1 --port 8080 -ngl 99 -np 1 -c 2048 --no-webui
 
 # written form, optional
 llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 1 -c 4096 --no-webui
@@ -85,24 +56,17 @@ python dictate.py
 ```
 
 Set `DICTATION_NORMALIZER=http://127.0.0.1:8081` in `.env` if you started the second server; leave it blank to paste
-transcripts as spoken. Hold Ctrl+H to talk, release to paste. Every setting is explained in `.env.example`.
+transcripts as spoken. Hold Ctrl+H to talk, release to paste. At `-c 2048` an utterance can run to about 100 s; a
+press with the server or the microphone unavailable pastes a `[dictation] ...` notice instead of a transcript.
 
-Audio costs about 13 tokens per second, and one request must fit a server slot together with the vocabulary prompt
-and the transcript: with 2048 tokens per slot an utterance can run to about 100 s. The client waits at startup until
-the ASR server's `/health` answers, and while the server is offline (stopped to free the GPU, say) a press pastes
-`[dictation] ASR server offline, not recording`; a failed request pastes `[dictation] transcription failed`; a press
-with no microphone available pastes `[dictation] no input device`. The device list is refreshed on every press, so a
-microphone connected after startup, or a Windows session locked and unlocked, is picked up on the next press.
+On Windows, the hotkey and the paste do not reach an elevated window. On macOS, the interpreter that runs
+`dictate.py` needs Input Monitoring, Accessibility and Microphone. Bluetooth earphones switch to their call profile
+when the input stream opens, which silences the first second: press, wait a beat, then speak.
 
-On Windows, the hotkey and the paste do not reach an elevated (administrator) window. On macOS, the interpreter that
-runs `dictate.py` needs Input Monitoring, Accessibility and Microphone. Bluetooth earphones switch to their call
-profile when the input stream opens, which silences the first second: press, wait a beat, then speak.
+### In the background
 
-### Background task (Windows)
-
-Runs as the scheduled task `dictation` under `pythonw`, with no console; output goes to `DICTATION_LOG_FILE`. It
-starts at logon, on unlock and every hour, and a trigger is ignored while it is already running. Register it once
-from PowerShell, with your interpreter and this directory:
+On Windows, as the scheduled task `dictation` under `pythonw`, started at logon, on unlock and every hour, with
+output to `DICTATION_LOG_FILE`. Register it once from PowerShell, with your interpreter and this directory:
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute "C:\path\to\pythonw.exe" -Argument "`"C:\path\to\dictation\dictate.py`""
@@ -116,82 +80,70 @@ $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
 Register-ScheduledTask -TaskName dictation -Action $action -Trigger $logon, $hourly, $unlock -Settings $settings -Principal (New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive)
 ```
 
-`Start-ScheduledTask dictation` and `Stop-ScheduledTask dictation` control it; restart it after editing `.env`, and
-stop it before running `python dictate.py` by hand, otherwise both react to the hotkey. The two llama-servers can be
-registered the same way. To free the GPU for a while, disable the server tasks rather than ending them, since an
-hourly trigger restarts an ended task; the client keeps running and only pastes the offline notice.
+`Start-ScheduledTask` and `Stop-ScheduledTask` control it; stop it before running `python dictate.py` by hand,
+otherwise both react to the hotkey. The llama-servers can be registered the same way; disable those tasks rather
+than ending them, since an hourly trigger restarts an ended task.
 
-### Background service (macOS)
+On macOS, launchd runs it at login and whenever it exits. Put your interpreter, this directory and the log path into
+`launchd/local.dictation.plist`, copy it to `~/Library/LaunchAgents/`, then
+`launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.dictation.plist`. The permissions go to the interpreter
+launchd starts, not to a terminal: add that `python3` binary to Accessibility in System Settings. Reload with
+`launchctl kickstart -k gui/$UID/local.dictation` after editing `.env` or the plist.
 
-launchd runs `dictate.py` at login and again whenever it exits. Copy `launchd/local.dictation.plist` into
-`~/Library/LaunchAgents/`, put your interpreter, this directory and the log path into it, and load it once:
+## Measurements
 
-```
-launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.dictation.plist
-```
+Measured with `-ngl 99 -np 1`, `-c 2048` for transcription and `-c 4096` for written form, on a current desktop GPU
+and a current Apple Silicon machine. CUDA is VRAM above the idle desktop, Metal the server process's resident set.
 
-The permissions go to the interpreter launchd starts, not to a terminal: in System Settings, Privacy & Security, add
-that `python3` binary to Accessibility (recent macOS lists it as device control and data access); Microphone is asked
-for on the first recording. Then `launchctl kickstart -k gui/$UID/local.dictation`. Stop it with
-`launchctl bootout gui/$UID/local.dictation` and load it again after editing `.env` or the plist.
+| Model | Quant | CUDA | Metal |
+|---|---|---|---|
+| Qwen3-ASR-1.7B | bf16 | 5222 MiB | 4893 MiB |
+| Qwen3-ASR-1.7B | Q8_0 | 3270 MiB | 2805 MiB |
+| Qwen3-ASR-0.6B | bf16 | 2783 MiB | 2199 MiB |
+| Qwen3-ASR-0.6B | Q8_0 | 1975 MiB | 1368 MiB |
+| gemma-4-12B-it-qat | UD-Q4_K_XL | 7339 MiB | |
+| gemma-4-E4B-it-qat | UD-Q4_K_XL | 2977 MiB | 4276 MiB |
+| gemma-4-E2B-it-qat | UD-Q4_K_XL | 1651 MiB | 2739 MiB |
 
-## Layout
+Transcription takes 0.06 to 0.18 s for a 5.9 s utterance and 0.26 to 0.98 s for a 36 s one, slowest at 1.7B bf16 and
+fastest at 0.6B Q8_0. Context and slots move memory further than the model does: the 1.7B Q8_0 server holds 3270 MiB
+at `-np 1 -c 2048` and 4863 MiB at `-np 8 -c 16384`. 1.7B is the largest Qwen3-ASR published as GGUF.
 
-```
-dictate.py             entry: records on the hotkey, transcribes, rewrites, pastes, logs results and timings
-.env.example           every setting with its default and what it does
-vocab.example.txt      vocabulary template; copy to vocab.txt (not in git), one term per line
-dictation/config.py    .env loading and parsing
-dictation/hotkey.py    global chord: press/release edges into a queue, trigger key swallowed
-dictation/recorder.py  mono recording from the default microphone
-dictation/chime.py     start and done tones
-dictation/asr.py       llama-server client: health wait, WAV request, language prefill, transcript parsing
-dictation/vocab.py     vocab.txt -> prompt
-dictation/normalize.py written form: the prompt, the number parsers, and the edit-by-edit check (merge)
-dictation/paste.py     paste via the clipboard, then restore the previous clipboard text (images and files are lost)
-launchd/               LaunchAgent for macOS
-```
+Accuracy over 150 FLEURS test clips per language, language pinned, CER for Chinese and Japanese, WER for English:
 
-## Design decisions
+| Model | Quant | zh | ja | en |
+|---|---|---|---|---|
+| Qwen3-ASR-1.7B | bf16 | 7.36 % | 5.76 % | 4.13 % |
+| Qwen3-ASR-1.7B | Q8_0 | 7.34 % | 5.68 % | 4.06 % |
+| Qwen3-ASR-0.6B | bf16 | 8.07 % | 9.64 % | 5.61 % |
+| Qwen3-ASR-0.6B | Q8_0 | 8.06 % | 9.35 % | 5.84 % |
 
-- **Transcription on a shared llama-server, no model in this process.** Over 28 clips of 1-15 s with the same
-  vocabulary prompt, the server took 0.19 s (median) against 0.76 s for transformers in-process on the same GPU; 15
-  of 28 transcripts were identical and the rest differed by 4.6 % of characters, mostly punctuation, fillers and clip
-  edges. It also frees about 4.4 GB of VRAM and starts instantly, and other programs can use the same server.
-- **Automatic language detection by default.** Speech mixes Chinese, English and Japanese, and an occasional utterance
-  taken as the wrong language is preferred over switching; the trade-off is spelled out in `.env.example`.
-- **Clipboard paste instead of typing.** pynput's `type()` sends lowercase letters and digits as real key presses, and
-  Microsoft Pinyin in Chinese mode swallows them into its composition window.
-- **pynput for the hotkey.** It is the only maintained cross-platform listener with key-up events and left/right
-  modifiers: `keyboard` is unmaintained and needs root on macOS, and pyautogui cannot listen and sends Cmd+V without the
-  Command flag on macOS.
-- **Failures never end the process.** Startup waits for `/health` as long as it takes; afterwards an offline server or
-  a failed request only costs that utterance, with a pasted notice, because a scheduled task restarts a dead process no
-  sooner than its next trigger. The notice is pasted rather than shown elsewhere because the process has no console.
-- **Written form by an LLM whose edits are checked in code.** Only a model can tell a hesitation word from a meant
-  one and handle numbers, units, letters and fillers in one pass, but the prompt alone does not hold it: the model
-  still translated requests, dropped half clauses and wrote an approximate range as exact digits, so the check
-  compares whole number values and undoes edits one by one. Replaying 186 logged sentences through Gemma 4 E4B: 170
-  taken whole, 10 with one edit undone, 6 pasted as spoken; 0.18 s median. On 38 sentences written to test numbers,
-  units and Japanese, 35 came out as wanted. Two other designs were measured and lost: having the model mark the
-  numerals for the code to convert (it could not copy the text faithfully), and converting every numeral in code and
-  having the model revert the false ones (it wrote digits inside a fixed phrase). Rule-based inverse text
-  normalization (WeTextProcessing) converts numbers but cannot tell fillers apart and has no Windows wheel on current
-  Python.
-- **Unit symbols only after Chinese numbers, and only where the model finds them natural.** "10 min" is a
-  Chinese-text habit; Japanese and English keep their unit words in full. Whether a Chinese
-  unit becomes a symbol is left to the model's reading of the context (specs and measurements yes, prose no); the
-  `UNITS` table only bounds which symbol a word may become, so a second can never come out as a minute.
+A tenth of a point is noise at this sample size. Read speech in one language is easier than dictation, and
+`vocab.txt` has no effect on these numbers.
 
-## Known limitations
+## How it works
 
-- Every transcript lands in the clipboard history and in `DICTATION_LOG_FILE`.
-- Whether the Windows keyboard hook keeps working after sleep is untested; the task triggers only restart a process
-  that has exited.
-- A stray "v" instead of a paste has been reported for pynput's Ctrl+V under Chinese IMEs (CapsWriter-Offline #426);
-  not seen here so far.
-- The written-form check lets through a deleted filler that did carry meaning, dropping a word from the sentence, and
-  keeps the model's punctuation, which is often half-width right after a digit ("6.25%,"). Edits it undoes are
-  dropped words, translations, tidied repetitions, numerals without one clear value, and a number whose space moved
-  when its unit became a symbol.
-- While `DICTATION_NORMALIZER` is set and its server is down, every utterance waits 0.5 s for the connection first.
+About 650 lines of Python. `pynput` watches for the chord and swallows the trigger key at the OS hook level, so the
+focused app never sees Ctrl+H; `sounddevice` records mono 16 kHz while it is held. `asr.py` sends the WAV to
+llama-server as one chat completion whose system message is the `vocab.txt` prompt and whose answer reads
+`language <Name><asr_text><transcript>`. `normalize.py` optionally sends the transcript on to the second server,
+then verifies the rewrite edit by edit with `difflib`: an edit survives only if the same speech could have produced
+both forms — a numeral written as the same value in digits, a unit as its symbol, a filler from a fixed list
+removed — and anything else is undone on its own, so the rest of the sentence still benefits. `paste.py` puts the
+result on the clipboard, sends Ctrl+V, and restores what was there before.
+
+`pynput` is pinned: the hotkey code depends on the order it calls the event filter, the callbacks and the macOS
+intercept. `vocab.txt` is re-read on every press. Every setting lives in `.env.example`.
+
+## Notes
+
+- Pasting rather than typing is deliberate: Chinese IMEs swallow synthetic key presses into their composition
+  window. `pynput` is the only maintained cross-platform listener with key-up events and left/right modifiers.
+- The rewrite is checked in code because the prompt alone did not hold it: the model translated requests, dropped
+  half clauses and wrote an approximate range as exact digits. Having it mark numerals for the code to convert, converting
+  every numeral in code and having it revert the false ones, and WeTextProcessing all lost to the current design.
+- Unit symbols are applied only after Chinese numbers; Japanese and English keep their unit words, and the `UNITS`
+  table bounds which symbol a word may become, so a second can never come out as a minute.
+- The check lets through a deleted filler that did carry meaning, and keeps half-width punctuation after a digit.
+- Every transcript lands in the clipboard history and in `DICTATION_LOG_FILE`. Whether the Windows keyboard hook
+  survives sleep is untested. With `DICTATION_NORMALIZER` set and its server down, a press waits 0.5 s first.

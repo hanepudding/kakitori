@@ -129,8 +129,10 @@ llama-server as one chat completion whose system message is the `vocab.txt` prom
 `language <Name><asr_text><transcript>`. `normalize.py` optionally sends the transcript on to the second server,
 then verifies the rewrite edit by edit with `difflib`: an edit survives only if the same speech could have produced
 both forms — a numeral written as the same value in digits, a unit as its symbol, a filler from a fixed list
-removed — and anything else is undone on its own, so the rest of the sentence still benefits. `paste.py` puts the
-result on the clipboard, sends Ctrl+V, and restores what was there before.
+removed — and anything else is undone on its own, so the rest of the sentence still benefits. The rewrite is a
+sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as its own request on the previous step's
+output; `digits` passes the check. `paste.py` puts the result on the clipboard, sends Ctrl+V, and restores what was
+there before.
 
 `pynput` is pinned: the hotkey code depends on the order it calls the event filter, the callbacks and the macOS
 intercept. `vocab.txt` is re-read on every press. Every setting lives in `.env.example`.

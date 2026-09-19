@@ -15,7 +15,7 @@ import time
 
 from dictation import chime, hotkey, paste, recorder, vocab
 from dictation.asr import SAMPLE_RATE, Qwen3ASR, ServerError
-from dictation.normalize import Normalizer, Rejected
+from dictation.normalize import Normalizer
 
 STOP_EDGE = {"hold": "up", "toggle": "down"}
 OFFLINE_NOTICE = "[dictation] ASR server offline, not recording"
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     t = time.perf_counter()
     asr = Qwen3ASR(settings.server, settings.max_new_tokens, settings.timeout_sec)
-    normalizer = Normalizer(settings.normalizer, settings.max_new_tokens, settings.normalizer_timeout_sec,
+    normalizer = Normalizer(settings.normalizer, settings.normalize_steps, settings.max_new_tokens, settings.normalizer_timeout_sec,
                             settings.normalizer_sec_per_char) if settings.normalizer else None
     say(f"Waiting for {settings.server} ...")
     asr.wait_until_ready()
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             try:
                 text, undone = normalizer.normalize(text)
                 say(f"[written form in {time.perf_counter() - t:.2f} s] {text}" + (f" (kept as spoken: {', '.join(undone)})" if undone else ""))
-            except (ServerError, Rejected) as e:
+            except ServerError as e:
                 say(f"Pasting as spoken: {e}")
         if text[-1:] in SENTENCE_END:
             text = text[:-1] + SENTENCE_END[text[-1]]

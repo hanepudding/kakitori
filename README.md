@@ -1,9 +1,9 @@
 # Kakitori
 
 Local push-to-talk dictation for Windows and macOS. Hold a hotkey, speak, release: the sentence is transcribed by a
-local speech model, optionally rewritten into written form (digits, unit symbols, 的/地/得, fillers removed) by a
-local chat model, and pasted into whatever window has focus. Chinese, English and Japanese can be mixed in one
-sentence.
+local speech model, optionally rewritten into written form (digits, unit symbols, 的/地/得, fillers and false starts
+removed) by a local chat model, and pasted into whatever window has focus. Chinese, English and Japanese can be mixed
+in one sentence.
 
 Everything runs on your own machine. This program holds no model: it records, talks to two HTTP servers, and pastes.
 
@@ -132,7 +132,7 @@ then verifies the rewrite edit by edit with `difflib`: an edit survives only if 
 both forms — a numeral written as the same value in digits, a unit as its symbol, a filler from a fixed list
 removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the rest of the sentence
 still benefits. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as its own
-request on the previous step's output; `digits` and `de` both pass the check.
+request on the previous step's output: `digits` and `de` pass the check, `polish` rewrites the wording and does not.
 `paste.py` puts the result on the clipboard, sends Ctrl+V, and restores what was there before.
 
 `pynput` is pinned: the hotkey code depends on the order it calls the event filter, the callbacks and the macOS

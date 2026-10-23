@@ -133,7 +133,8 @@ both forms — a numeral written as the same value in digits, a unit as its symb
 removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the rest of the sentence
 still benefits. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as its own
 request on the previous step's output: `digits` and `de` pass the check, `polish` rewrites the wording and does not.
-`paste.py` puts the result on the clipboard, sends Ctrl+V, and restores what was there before.
+`paste.py` puts the result on the clipboard, sends Ctrl+V, and restores every format that was there before; both
+writes are marked to stay out of clipboard history, cloud sync and clipboard managers.
 
 `pynput` is pinned: the hotkey code depends on the order it calls the event filter, the callbacks and the macOS
 intercept. `vocab.txt` is re-read on every press. Every setting lives in `.env.example`.
@@ -148,5 +149,6 @@ intercept. `vocab.txt` is re-read on every press. Every setting lives in `.env.e
 - Unit symbols are applied only after Chinese numbers; Japanese and English keep their unit words, and the `UNITS`
   table bounds which symbol a word may become, so a second can never come out as a minute.
 - The check lets through a deleted filler that did carry meaning, and keeps half-width punctuation after a digit.
-- Every transcript lands in the clipboard history and in `DICTATION_LOG_FILE`. Whether the Windows keyboard hook
-  survives sleep is untested. With `DICTATION_NORMALIZER` set and its server down, a press waits 0.5 s first.
+- Every transcript lands in `DICTATION_LOG_FILE`. A clipboard manager that ignores the markers still records it.
+  Whether the Windows keyboard hook survives sleep is untested. With `DICTATION_NORMALIZER` set and its server
+  down, a press waits 0.5 s first.

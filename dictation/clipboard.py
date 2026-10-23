@@ -1,10 +1,17 @@
-"""The system clipboard as a whole: snapshot() every format it holds, restore() them, write_text() replaces them."""
+"""The system clipboard as a whole: snapshot() every format it holds, restore() them, write_text() replaces them.
+
+Every write is marked to stay out of clipboard history, cloud sync and clipboard managers. restore() is marked too:
+unmarked, putting back the user's earlier copy would record it a second time.
+"""
 import sys
 
 if sys.platform == "darwin":
-    from AppKit import NSData, NSPasteboard, NSPasteboardItem, NSPasteboardTypeString
+    from AppKit import (NSData, NSPasteboard, NSPasteboardContentsCurrentHostOnly, NSPasteboardItem,
+                        NSPasteboardTypeString)
 
     _pasteboard = NSPasteboard.generalPasteboard()
+    # nspasteboard.org convention, honoured by the common clipboard managers; CurrentHostOnly keeps it off Universal Clipboard
+    _TRANSIENT = "org.nspasteboard.TransientType"
 
     def snapshot() -> list[list[tuple]]:
         """One list of (type, data) per pasteboard item; a Finder copy of several files is several items."""
@@ -13,7 +20,7 @@ if sys.platform == "darwin":
                 for item in _pasteboard.pasteboardItems()]
 
     def restore(items: list[list[tuple]]) -> None:
-        _pasteboard.clearContents()
+        _pasteboard.prepareForNewContentsWithOptions_(NSPasteboardContentsCurrentHostOnly)
         objects = []
         for types in items:
             item = NSPasteboardItem.alloc().init()
@@ -21,6 +28,7 @@ if sys.platform == "darwin":
                 item.setData_forType_(d, t)
             objects.append(item)
         if objects:
+            objects[0].setData_forType_(NSData.data(), _TRANSIENT)
             _pasteboard.writeObjects_(objects)
 
     def write_text(text: str) -> None:
@@ -61,6 +69,7 @@ else:
     _GetEnhMetaFileBits = _api(_gdi32, "GetEnhMetaFileBits", wintypes.UINT, _H, wintypes.UINT, ctypes.c_char_p)
     _SetEnhMetaFileBits = _api(_gdi32, "SetEnhMetaFileBits", _H, wintypes.UINT, ctypes.c_char_p)
     _DeleteEnhMetaFile = _api(_gdi32, "DeleteEnhMetaFile", wintypes.BOOL, _H)
+    _RegisterClipboardFormatW = _api(_user32, "RegisterClipboardFormatW", wintypes.UINT, wintypes.LPCWSTR)
 
     _CF_UNICODETEXT = 13
     _CF_ENHMETAFILE = 14
@@ -74,6 +83,9 @@ else:
         if not ok:
             raise ctypes.WinError(ctypes.get_last_error())
         return ok
+
+    # Any data in this format keeps the whole clipboard out of Win+V history, cloud clipboard and monitors honouring it
+    _CF_EXCLUDE = _check(_RegisterClipboardFormatW("ExcludeClipboardContentFromMonitorProcessing"))
 
     @contextlib.contextmanager
     def _opened():
@@ -145,6 +157,8 @@ else:
             _check(_EmptyClipboard())
             for fmt, data in formats:
                 _write(fmt, data)
+            if formats:
+                _write(_CF_EXCLUDE, b"")
 
     def write_text(text: str) -> None:
         restore([(_CF_UNICODETEXT, (text + "\0").encode("utf-16-le"))])

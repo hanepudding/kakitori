@@ -129,10 +129,12 @@ focused app never sees Ctrl+H; `sounddevice` records mono 16 kHz while it is hel
 llama-server as one chat completion whose system message is the `vocab.txt` prompt and whose answer reads
 `language <Name><asr_text><transcript>`. `normalize.py` optionally sends the transcript on to the second server,
 then verifies the rewrite edit by edit with `difflib`: an edit survives only if the same speech could have produced
-both forms — a numeral written as the same value in digits, a unit as its symbol, a filler from a fixed list
-removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the rest of the sentence
-still benefits. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as its own
-request on the previous step's output: `digits` and `de` pass the check, `polish` rewrites the wording and does not.
+both forms — a numeral written as the same value in digits, a time of day as HH:MM, a unit as its symbol, a filler
+from a fixed list removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the
+rest of the sentence still benefits. Code then writes every unit after a number one way: `2个小时` and `2小时` as
+`2 h`, `两个G` as `2G`. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as
+its own request on the previous step's output: `digits` and `de` pass the check, `polish` rewrites the
+wording and does not.
 `paste.py` puts the result on the clipboard, sends Ctrl+V, and restores every format that was there before; both
 writes are marked to stay out of clipboard history, cloud sync and clipboard managers.
 
@@ -146,8 +148,9 @@ intercept. `vocab.txt` is re-read on every press. Every setting lives in `.env.e
 - The rewrite is checked in code because the prompt alone did not hold it: the model translated requests, dropped
   half clauses and wrote an approximate range as exact digits. Having it mark numerals for the code to convert, converting
   every numeral in code and having it revert the false ones, and WeTextProcessing all lost to the current design.
-- Unit symbols are applied only after Chinese numbers; Japanese and English keep their unit words, and the `UNITS`
-  table bounds which symbol a word may become, so a second can never come out as a minute.
+- Unit symbols are applied only after a number, and the `UNITS` table bounds which symbol a word may become, so a
+  second can never come out as a minute. Unit words of one character (秒, 米, 克, 升) are left to the model, since
+  7升级 holds no unit.
 - The check lets through a deleted filler that did carry meaning, and keeps half-width punctuation after a digit.
 - Every transcript lands in `DICTATION_LOG_FILE`. A clipboard manager that ignores the markers still records it.
   Whether the Windows keyboard hook survives sleep is untested. With `DICTATION_NORMALIZER` set and its server

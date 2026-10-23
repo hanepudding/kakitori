@@ -43,7 +43,7 @@ Two llama-servers, reachable over HTTP from this machine (neither has to run on 
 llama-server -hf ggml-org/Qwen3-ASR-1.7B-GGUF:Q8_0 --host 127.0.0.1 --port 8080 -ngl 99 -np 1 -c 2048 --no-webui
 
 # written form, optional
-llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 1 -c 4096 --no-webui
+llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 1 -c 4096 --no-webui --spec-type ngram-simple --spec-ngram-simple-size-n 3 --spec-ngram-simple-size-m 32
 ```
 
 Both download their model on first use (`brew install llama.cpp` on macOS; on Windows take a CUDA build from the
@@ -109,6 +109,11 @@ and a current Apple Silicon machine. CUDA is VRAM above the idle desktop, Metal 
 Transcription takes 0.06 to 0.18 s for a 5.9 s utterance and 0.26 to 0.98 s for a 36 s one, slowest at 1.7B bf16 and
 fastest at 0.6B Q8_0. Context and slots move memory further than the model does: the 1.7B Q8_0 server holds 3270 MiB
 at `-np 1 -c 2048` and 4863 MiB at `-np 8 -c 16384`. 1.7B is the largest Qwen3-ASR published as GGUF.
+
+Written form is most of the wait after release: each step writes the whole transcript out again. A rewrite mostly
+copies its input, and `--spec-type ngram-simple` drafts tokens from text already in the context, so on the desktop GPU
+20 transcripts through three steps took 15.4 s instead of 39.1 s, with no memory added and 55 of the 60 replies
+unchanged.
 
 Accuracy over 150 FLEURS test clips per language, language pinned, CER for Chinese and Japanese, WER for English:
 

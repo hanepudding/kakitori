@@ -133,8 +133,8 @@ both forms — a numeral written as the same value in digits, a time of day as H
 from a fixed list removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the
 rest of the sentence still benefits. Code then writes every unit after a number one way: `2个小时` and `2小时` as
 `2 h`, `两个G` as `2G`. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as
-its own request on the previous step's output: `digits` and `de` pass the check, `polish` rewrites the
-wording and does not.
+its own request on the previous step's output: `digits` and `de` pass the check; `polish`, off by default, rewrites
+the wording and does not.
 `paste.py` puts the result on the clipboard, sends Ctrl+V, and restores every format that was there before; both
 writes are marked to stay out of clipboard history, cloud sync and clipboard managers.
 

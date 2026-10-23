@@ -9,6 +9,8 @@ import sys
 from pynput import keyboard
 from pynput.keyboard import Key
 
+from dictation import paste
+
 # The Windows low-level keyboard hook reports side-specific key codes, so <ctrl> in a chord must match both sides
 _MODIFIER_FAMILIES = {
     Key.ctrl: (Key.ctrl, Key.ctrl_l, Key.ctrl_r),
@@ -18,7 +20,6 @@ _MODIFIER_FAMILIES = {
 }
 _WM_KEYDOWN = 0x0100
 _WM_SYSKEYDOWN = 0x0104
-_LLKHF_INJECTED = 0x10
 
 
 class Chord:
@@ -85,9 +86,9 @@ def listen(hotkey: str) -> queue.Queue:
         # The filter runs synchronously inside the hook callback, and a suppressed event never reaches
         # on_press/on_release, so the chord can only be tracked here
         def event_filter(msg, data):
-            # Ctrl injected by paste.py passes through the hook too; counting it would clear a Ctrl the user
-            # is still holding and emit an extra "up"
-            if data.flags & _LLKHF_INJECTED:
+            # paste.py's Ctrl passes through the hook too; counting it would clear a Ctrl the user is still holding
+            # and emit an extra "up". Other injected keys count, so a mouse button remapped to the chord triggers it
+            if data.dwExtraInfo == paste.INJECTED_MARK:
                 return
             track = chord.press if msg in (_WM_KEYDOWN, _WM_SYSKEYDOWN) else chord.release
             if track(data.vkCode):

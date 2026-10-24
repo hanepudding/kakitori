@@ -77,7 +77,8 @@ $hourly = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New
 $hourly.Repetition.StopAtDurationEnd = $false
 # StateChange 8 is session unlock
 $unlock = New-CimInstance -CimClass (Get-CimClass -Namespace ROOT\Microsoft\Windows\TaskScheduler -ClassName MSFT_TaskSessionStateChangeTrigger) -Property @{ StateChange = 8; UserId = $env:USERNAME } -ClientOnly
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+# Priority 2 is above normal: the default 7 is below normal, and a batch job that takes every core then delays each press
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -Priority 2
 Register-ScheduledTask -TaskName dictation -Action $action -Trigger $logon, $hourly, $unlock -Settings $settings -Principal (New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive)
 ```
 

@@ -1,4 +1,4 @@
-"""Dictate into the focused window. Run: python dictate.py — settings come from .env (see .env.example), Ctrl+C quits."""
+"""Dictate into the focused window. Run: uv run dictate.py — settings come from .env (see .env.example), Ctrl+C quits."""
 import sys
 
 from dictation import config

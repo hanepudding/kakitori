@@ -11,7 +11,7 @@ This was vibe coded and is kept deliberately small. The rest of this file is wri
 will hand it to. If you are reading it yourself, all of it is:
 
 1. Run two `llama-server` instances, sizes from the table below.
-2. Copy `.env.example` to `.env`, `vocab.example.txt` to `vocab.txt`, and run `python dictate.py`.
+2. Copy `.env.example` to `.env`, `vocab.example.txt` to `vocab.txt`, and run `uv run dictate.py`.
 3. Hold Ctrl+H, speak, release.
 
 ## Choosing models
@@ -47,13 +47,13 @@ llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 1
 ```
 
 Both download their model on first use (`brew install llama.cpp` on macOS; on Windows take a CUDA build from the
-llama.cpp releases). Then, from the project directory, into the machine's own interpreter:
+llama.cpp releases). Then, from the project directory, into its own `.venv`:
 
 ```
-uv pip install -r requirements.txt
+uv sync
 cp .env.example .env
 cp vocab.example.txt vocab.txt
-python dictate.py
+uv run dictate.py
 ```
 
 Set `DICTATION_NORMALIZER=http://127.0.0.1:8081` in `.env` if you started the second server; leave it blank to paste
@@ -66,11 +66,11 @@ when the input stream opens, which silences the first second: press, wait a beat
 
 ### In the background
 
-On Windows, as the scheduled task `dictation` under `pythonw`, started at logon, on unlock and every hour, with
-output to `DICTATION_LOG_FILE`. Register it once from PowerShell, with your interpreter and this directory:
+On Windows, as the scheduled task `kakitori` under `pythonw`, started at logon, on unlock and every hour, with
+output to `DICTATION_LOG_FILE`. Register it once from PowerShell, with this directory:
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "C:\path\to\pythonw.exe" -Argument "`"C:\path\to\dictation\dictate.py`""
+$action = New-ScheduledTaskAction -Execute "C:\path\to\kakitori\.venv\Scripts\pythonw.exe" -Argument "`"C:\path\to\kakitori\dictate.py`""
 # Logon and unlock triggers are bound to the current user: any-user triggers are refused without an elevated shell
 $logon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $hourly = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1)
@@ -79,10 +79,10 @@ $hourly.Repetition.StopAtDurationEnd = $false
 $unlock = New-CimInstance -CimClass (Get-CimClass -Namespace ROOT\Microsoft\Windows\TaskScheduler -ClassName MSFT_TaskSessionStateChangeTrigger) -Property @{ StateChange = 8; UserId = $env:USERNAME } -ClientOnly
 # Priority 2 is above normal: the default 7 is below normal, and a batch job that takes every core then delays each press
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -Priority 2
-Register-ScheduledTask -TaskName dictation -Action $action -Trigger $logon, $hourly, $unlock -Settings $settings -Principal (New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive)
+Register-ScheduledTask -TaskName kakitori -Action $action -Trigger $logon, $hourly, $unlock -Settings $settings -Principal (New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive)
 ```
 
-`Start-ScheduledTask` and `Stop-ScheduledTask` control it; stop it before running `python dictate.py` by hand,
+`Start-ScheduledTask` and `Stop-ScheduledTask` control it; stop it before running `uv run dictate.py` by hand,
 otherwise both react to the hotkey. The llama-servers can be registered the same way; disable those tasks rather
 than ending them, since an hourly trigger restarts an ended task.
 

@@ -1,0 +1,19 @@
+[project]
+name = "kakitori"
+version = "0.1.0"
+description = "Local push-to-talk dictation: hold a hotkey, speak, release, and the transcript is pasted"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "sounddevice",
+    "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+    "python-dotenv",
+    "httpx",
+    # hotkey.py relies on the order in which this version calls the filter, the callbacks and intercept
+    "pynput==1.8.2",
+]
+
+[tool.uv]
+package = false

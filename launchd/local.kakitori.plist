@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>local.dictation</string>
+    <string>local.kakitori</string>
     <key>ProgramArguments</key>
     <array>
         <string>/path/to/python3</string>
         <string>dictate.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/dictation</string>
+    <string>/path/to/kakitori</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PYTHONUNBUFFERED</key>
@@ -21,8 +21,8 @@
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/path/to/dictation.log</string>
+    <string>/path/to/kakitori.log</string>
     <key>StandardErrorPath</key>
-    <string>/path/to/dictation.log</string>
+    <string>/path/to/kakitori.log</string>
 </dict>
 </plist>

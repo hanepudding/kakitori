@@ -87,10 +87,10 @@ otherwise both react to the hotkey. The llama-servers can be registered the same
 than ending them, since an hourly trigger restarts an ended task.
 
 On macOS, launchd runs it at login and whenever it exits. Put your interpreter, this directory and the log path into
-`launchd/local.dictation.plist`, copy it to `~/Library/LaunchAgents/`, then
-`launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.dictation.plist`. The permissions go to the interpreter
+`launchd/local.kakitori.plist`, copy it to `~/Library/LaunchAgents/`, then
+`launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.kakitori.plist`. The permissions go to the interpreter
 launchd starts, not to a terminal: add that `python3` binary to Accessibility in System Settings. Reload with
-`launchctl kickstart -k gui/$UID/local.dictation` after editing `.env` or the plist.
+`launchctl kickstart -k gui/$UID/local.kakitori` after editing `.env` or the plist.
 
 ## Measurements
 

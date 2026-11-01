@@ -2,3 +2,5 @@
 vocab.txt
 __pycache__/
 .venv/
+# This machine's own deploy files, kept out of the public repo; Syncthing still carries them
+deploy/

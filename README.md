@@ -57,10 +57,11 @@ uv run dictate.py
 ```
 
 Set `DICTATION_NORMALIZER=http://127.0.0.1:8081` in `.env` if you started the second server; leave it blank to paste
-transcripts as spoken. llama-service's llama-server serves both models on one port by the names kakitori sends,
-`qwen3-asr-1.7b` and `gemma-4-e4b-it`: with it, both settings take that one address. Hold Ctrl+H to talk, release to
-paste. At `-c 2048` an utterance can run to about 100 s; a press with the server or the microphone unavailable pastes a
-`[dictation] ...` notice instead of a transcript.
+transcripts as spoken. One llama-server can also serve both models in router mode: both settings then take its one
+address, and it picks each model by the name kakitori sends, `DICTATION_SERVER_MODEL` and `DICTATION_NORMALIZER_MODEL`
+(`qwen3-asr-1.7b` and `gemma-4-e4b-it` by default). Hold Ctrl+H to talk, release to paste. At `-c 2048` an utterance
+can run to about 100 s; a press with the server or the microphone unavailable pastes a `[dictation] ...` notice
+instead of a transcript.
 
 On Windows, the hotkey and the paste do not reach an elevated window. On macOS, the interpreter that runs
 `dictate.py` needs Input Monitoring, Accessibility and Microphone. Bluetooth earphones switch to their call profile

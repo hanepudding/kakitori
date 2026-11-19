@@ -385,9 +385,10 @@ def merge(text: str, written: str) -> tuple[str, list[str]]:
 
 
 class Normalizer:
-    def __init__(self, server: str, steps: tuple[str, ...], max_new_tokens: int, timeout_sec: float,
+    def __init__(self, server: str, model: str, steps: tuple[str, ...], max_new_tokens: int, timeout_sec: float,
                  sec_per_char: float) -> None:
         self.server = server.rstrip("/")
+        self.model = model
         # Indexed here, so a misspelled step fails at startup rather than on the first utterance
         self.steps = [(name, STEPS[name]) for name in steps]
         self.max_new_tokens = max_new_tokens
@@ -414,7 +415,7 @@ class Normalizer:
 
     def _complete(self, prompt: str, text: str) -> str:
         body = {
-            "model": "gemma-4-e4b-it",
+            "model": self.model,
             "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": f"<transcript>\n{text}\n</transcript>"}],
             "max_tokens": self.max_new_tokens,
             "temperature": 0,

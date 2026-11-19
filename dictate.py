@@ -39,9 +39,9 @@ if __name__ == "__main__":
     stop = STOP_EDGE[settings.mode]
 
     t = time.perf_counter()
-    asr = Qwen3ASR(settings.server, settings.max_new_tokens, settings.timeout_sec)
-    normalizer = Normalizer(settings.normalizer, settings.normalize_steps, settings.max_new_tokens, settings.normalizer_timeout_sec,
-                            settings.normalizer_sec_per_char) if settings.normalizer else None
+    asr = Qwen3ASR(settings.server, settings.server_model, settings.max_new_tokens, settings.timeout_sec)
+    normalizer = Normalizer(settings.normalizer, settings.normalizer_model, settings.normalize_steps, settings.max_new_tokens,
+                            settings.normalizer_timeout_sec, settings.normalizer_sec_per_char) if settings.normalizer else None
     say(f"Waiting for {settings.server} ...")
     asr.wait_until_ready()
     asr.warm_up(vocab.load_prompt(settings.vocab), settings.language)

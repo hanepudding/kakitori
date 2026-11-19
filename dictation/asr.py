@@ -18,8 +18,9 @@ class ServerError(Exception):
 
 
 class Qwen3ASR:
-    def __init__(self, server: str, max_new_tokens: int, timeout_sec: float) -> None:
+    def __init__(self, server: str, model: str, max_new_tokens: int, timeout_sec: float) -> None:
         self.server = server.rstrip("/")
+        self.model = model
         self.max_new_tokens = max_new_tokens
         self.http = httpx.Client(timeout=timeout_sec)
 
@@ -48,7 +49,7 @@ class Qwen3ASR:
             # Qwen3-ASR is held to a language by prefilling the start of its answer
             messages.append({"role": "assistant", "content": f"language {language}<asr_text>"})
 
-        body = {"model": "qwen3-asr-1.7b", "messages": messages, "max_tokens": self.max_new_tokens, "temperature": 0}
+        body = {"model": self.model, "messages": messages, "max_tokens": self.max_new_tokens, "temperature": 0}
         try:
             r = self.http.post(f"{self.server}/v1/chat/completions", json=body)
         except httpx.TransportError as e:

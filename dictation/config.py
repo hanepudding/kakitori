@@ -16,7 +16,9 @@ class Settings:
     language: str | None
     vocab: Path
     server: str
+    server_model: str
     normalizer: str | None
+    normalizer_model: str
     normalize_steps: tuple[str, ...]
     max_new_tokens: int
     timeout_sec: float
@@ -47,7 +49,9 @@ def load() -> Settings:
         language=_get("DICTATION_LANGUAGE"),
         vocab=_path(_get("DICTATION_VOCAB", "vocab.txt")),
         server=_get("DICTATION_SERVER", "http://127.0.0.1:8080"),
+        server_model=_get("DICTATION_SERVER_MODEL", "qwen3-asr-1.7b"),
         normalizer=_get("DICTATION_NORMALIZER"),
+        normalizer_model=_get("DICTATION_NORMALIZER_MODEL", "gemma-4-e4b-it"),
         normalize_steps=tuple(s.strip() for s in _get("DICTATION_NORMALIZE_STEPS", "digits,de").split(",")),
         max_new_tokens=int(_get("DICTATION_MAX_NEW_TOKENS", "512")),
         timeout_sec=float(_get("DICTATION_TIMEOUT_SEC", "60")),

@@ -89,9 +89,41 @@ Register-ScheduledTask -TaskName kakitori -Action $action -Trigger $logon, $hour
 otherwise both react to the hotkey. The llama-servers can be registered the same way; disable those tasks rather
 than ending them, since an hourly trigger restarts an ended task.
 
-On macOS, launchd runs it at login and whenever it exits. Put your interpreter, this directory and the log path into
-`launchd/local.kakitori.plist`, copy it to `~/Library/LaunchAgents/`, then
-`launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.kakitori.plist`. The permissions go to the interpreter
+On macOS, launchd runs it at login and whenever it exits. Save this as `~/Library/LaunchAgents/local.kakitori.plist`,
+with your interpreter, this directory and the log path in place of the `/path/to` ones:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.kakitori</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/python3</string>
+        <string>dictate.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/kakitori</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/path/to/kakitori.log</string>
+    <key>StandardErrorPath</key>
+    <string>/path/to/kakitori.log</string>
+</dict>
+</plist>
+```
+
+Then `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/local.kakitori.plist`. The permissions go to the interpreter
 launchd starts, not to a terminal: add that `python3` binary to Accessibility in System Settings. Reload with
 `launchctl kickstart -k gui/$UID/local.kakitori` after editing `.env` or the plist.
 

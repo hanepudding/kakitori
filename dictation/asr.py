@@ -48,7 +48,7 @@ class Qwen3ASR:
             # Qwen3-ASR is held to a language by prefilling the start of its answer
             messages.append({"role": "assistant", "content": f"language {language}<asr_text>"})
 
-        body = {"messages": messages, "max_tokens": self.max_new_tokens, "temperature": 0}
+        body = {"model": "qwen3-asr-1.7b", "messages": messages, "max_tokens": self.max_new_tokens, "temperature": 0}
         try:
             r = self.http.post(f"{self.server}/v1/chat/completions", json=body)
         except httpx.TransportError as e:

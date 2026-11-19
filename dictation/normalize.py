@@ -414,6 +414,7 @@ class Normalizer:
 
     def _complete(self, prompt: str, text: str) -> str:
         body = {
+            "model": "gemma-4-e4b-it",
             "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": f"<transcript>\n{text}\n</transcript>"}],
             "max_tokens": self.max_new_tokens,
             "temperature": 0,

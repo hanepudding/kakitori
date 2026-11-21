@@ -57,10 +57,8 @@ class Qwen3ASR:
         if r.status_code != 200:
             raise ServerError(f"{r.status_code} {r.text}")
 
-        # The answer reads "language <Name><asr_text><transcript>", with the prefill included when there is one
-        content = r.json()["choices"][0]["message"]["content"]
-        _, tag, text = content.partition("<asr_text>")
-        return (text if tag else content).strip()
+        # The model's chat template puts "language <Name>" in reasoning_content, so content is the transcript alone
+        return r.json()["choices"][0]["message"]["content"].strip()
 
     def warm_up(self, prompt: str | None, language: str | None) -> None:
         self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32), prompt, language)

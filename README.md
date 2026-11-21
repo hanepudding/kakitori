@@ -167,15 +167,15 @@ A tenth of a point is noise at this sample size. Read speech in one language is 
 
 About 650 lines of Python. `pynput` watches for the chord and swallows the trigger key at the OS hook level, so the
 focused app never sees Ctrl+H; `sounddevice` records mono 16 kHz while it is held. `asr.py` sends the WAV to
-llama-server as one chat completion whose system message is the `vocab.txt` prompt and whose answer reads
-`language <Name><asr_text><transcript>`. `normalize.py` optionally sends the transcript on to the second server,
-then verifies the rewrite edit by edit with `difflib`: an edit survives only if the same speech could have produced
-both forms — a numeral written as the same value in digits, a time of day as HH:MM, a unit as its symbol, a filler
-from a fixed list removed, 的, 地 and 得 in place of one another — and anything else is undone on its own, so the
-rest of the sentence still benefits. Code then writes every unit after a number one way: `2个小时` and `2小时` as
-`2 h`, `两个G` as `2G`. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt sent as
-its own request on the previous step's output: `digits` and `de` pass the check; `polish`, off by default, rewrites
-the wording and does not.
+llama-server as one chat completion whose system message is the `vocab.txt` prompt; the model's chat template returns
+the transcript as the content and the language it detected as the reasoning. `normalize.py` optionally sends the
+transcript on to the second server, then verifies the rewrite edit by edit with `difflib`: an edit survives only if the
+same speech could have produced both forms — a numeral written as the same value in digits, a time of day as HH:MM, a
+unit as its symbol, a filler from a fixed list removed, 的, 地 and 得 in place of one another — and anything else is undone
+on its own, so the rest of the sentence still benefits. Code then writes every unit after a number one way: `2个小时` and
+`2小时` as `2 h`, `两个G` as `2G`. The rewrite is a sequence of steps named in `DICTATION_NORMALIZE_STEPS`, each a prompt
+sent as its own request on the previous step's output: `digits` and `de` pass the check; `polish`, off by default,
+rewrites the wording and does not.
 `paste.py` puts the result on the clipboard, sends Ctrl+V, and restores every format that was there before; both
 writes are marked to stay out of clipboard history, cloud sync and clipboard managers.
 

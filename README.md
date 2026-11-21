@@ -43,7 +43,7 @@ Two llama-servers, reachable over HTTP from this machine (neither has to run on 
 llama-server -hf ggml-org/Qwen3-ASR-1.7B-GGUF:Q8_0 --host 127.0.0.1 --port 8080 -ngl 99 -np 1 -c 2048 --no-webui
 
 # written form, optional
-llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 1 -c 4096 --no-webui --spec-type ngram-simple --spec-ngram-simple-size-n 3 --spec-ngram-simple-size-m 32
+llama-server -hf unsloth/gemma-4-E4B-it-qat-GGUF:UD-Q4_K_XL --no-mmproj --host 127.0.0.1 --port 8081 -ngl 99 -np 2 -c 4096 --no-webui --spec-type ngram-simple --spec-ngram-simple-size-n 3 --spec-ngram-simple-size-m 32
 ```
 
 Both download their model on first use (`brew install llama.cpp` on macOS; on Windows take a CUDA build from the
@@ -57,11 +57,14 @@ uv run dictate.py
 ```
 
 Set `DICTATION_NORMALIZER=http://127.0.0.1:8081` in `.env` if you started the second server; leave it blank to paste
-transcripts as spoken. One llama-server can also serve both models in router mode: both settings then take its one
-address, and it picks each model by the name kakitori sends, `DICTATION_SERVER_MODEL` and `DICTATION_NORMALIZER_MODEL`
-(`qwen3-asr-1.7b` and `gemma-4-e4b-it` by default). Hold Ctrl+H to talk, release to paste. At `-c 2048` an utterance
-can run to about 100 s; a press with the server or the microphone unavailable pastes a `[dictation] ...` notice
-instead of a transcript.
+transcripts as spoken. That server needs one slot (`-np`) per step in `DICTATION_NORMALIZE_STEPS`, so that every step's
+system prompt stays cached: with fewer, the steps evict each other's prompt on every request, and the two default steps
+took a third longer on one slot. Each slot holds the longest step prompt, `digits` at 658 tokens, plus
+`DICTATION_MAX_NEW_TOKENS` in and out: 2048 tokens of `-c` per slot at the default 512. One llama-server can also serve
+both models in router mode: both settings then take its one address, and it picks each model by the name kakitori sends,
+`DICTATION_SERVER_MODEL` and `DICTATION_NORMALIZER_MODEL` (`qwen3-asr-1.7b` and `gemma-4-e4b-it` by default). Hold
+Ctrl+H to talk, release to paste. At `-c 2048` an utterance can run to about 100 s; a press with the server or the
+microphone unavailable pastes a `[dictation] ...` notice instead of a transcript.
 
 On Windows, the hotkey and the paste do not reach an elevated window. On macOS, the interpreter that runs
 `dictate.py` needs Input Monitoring, Accessibility and Microphone. Bluetooth earphones switch to their call profile
